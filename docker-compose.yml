@@ -1,0 +1,119 @@
+services:
+  # === BASE DE DATOS (ya comprobada) ===
+  mysql:
+    image: mysql:8.4
+    container_name: b2b_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: b2b
+      MYSQL_USER: b2b
+      MYSQL_PASSWORD: b2b
+      TZ: America/Lima
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/1_schema.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/2_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # === CUSTOMERS API ===
+  customers-api:
+    build:
+      context: ./customers-api
+    container_name: customers_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      # DB
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: b2b
+      DB_PASSWORD: b2b
+      DB_NAME: b2b
+      # AUTH
+      JWT_SECRET: super_secret_for_jwt
+      SERVICE_TOKEN: super_secret_service_token
+      TZ: America/Lima
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # === ORDERS API ===
+  orders-api:
+    build:
+      context: ./orders-api
+    container_name: orders_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      # DB
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: b2b
+      DB_PASSWORD: b2b
+      DB_NAME: b2b
+      # CUSTOMERS INTERNAL CALL
+      CUSTOMERS_INTERNAL_BASE: http://customers-api:3001
+      # AUTH
+      JWT_SECRET: super_secret_for_jwt
+      SERVICE_TOKEN: super_secret_service_token
+      TZ: America/Lima
+    depends_on:
+      mysql:
+        condition: service_healthy
+      customers-api:
+        condition: service_healthy
+    ports:
+      - "3002:3002"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # === ORCHESTRATOR API ===
+  orchestrator-api:
+    build:
+      context: ./lambda-orchestrator
+    container_name: orchestrator_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+      CUSTOMERS_INTERNAL_BASE: http://customers-api:3001
+      ORDERS_BASE: http://orders-api:3002
+      ##SERVICE_TOKEN: {}
+      JWT_SECRET: super_secret_for_jwt
+      REQUEST_TIMEOUT_MS: 5000
+      TZ: America/Lima
+    depends_on:
+      customers-api:
+        condition: service_healthy
+      orders-api:
+        condition: service_healthy
+    ports:
+      - "3003:3003"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3003/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+# === VOLUMENES PERSISTENTES ===
+volumes:
+  mysql_data:
