@@ -1,4 +1,4 @@
-// src/domain/repositories/IdempotencyRepository.ts
+
 export type IdempotencyRow = {
     key: string;
     target_type: 'order_create' | 'order_confirm';

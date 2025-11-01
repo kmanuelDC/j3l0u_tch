@@ -1,6 +1,4 @@
-import { Pool } from 'mysql2/promise';
-import { Product } from '../../domain/entities/Product.js';
-import { ProductRepository } from '../../domain/repositories/ProductRepository.js';
+import { Product, ProductRepository } from '../../domain/repositories/ProductRepository.js';
 import { pool } from "../db/mysql.js";
 
 export class ProductMySQLRepository implements ProductRepository {

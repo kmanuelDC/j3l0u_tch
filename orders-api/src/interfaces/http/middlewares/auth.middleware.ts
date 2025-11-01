@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import jwt, { JwtPayload } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import { ENV as env } from '../../../config/env.js';
 
 export function jwtAuth(req: Request, res: Response, next: NextFunction) {

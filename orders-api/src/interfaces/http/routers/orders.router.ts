@@ -12,15 +12,15 @@ import { jwtAuth } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-// Instancias repos
+
 const ordersRepo = new MySQLOrderRepository();
 const productRepo = new ProductMySQLRepository();
 const idempotencyRepo = new MySQLIdempotencyRepository();
 
-// Health
+
 router.get('/health', (_req, res) => res.json({ ok: true }));
 
-// Listar
+
 router.get('/orders', async (req, res) => {
     const { status, from, to, limit = '20', cursor } = req.query as any;
 
@@ -51,7 +51,7 @@ router.get('/orders', async (req, res) => {
     }
 });
 
-// Detalle
+
 router.get('/orders/:id', jwtAuth, async (req, res) => {
     const o = await ordersRepo.getById(Number(req.params.id));
     if (!o) return res.status(404).json({ error: 'Not found' });
@@ -111,7 +111,7 @@ router.post('/orders/:id/confirm', jwtAuth, async (req, res) => {
     }
 });
 
-// Cancelar
+
 router.post('/orders/:id/cancel', jwtAuth, async (req, res) => {
     try {
         const out = await ordersRepo.cancel(Number(req.params.id));
