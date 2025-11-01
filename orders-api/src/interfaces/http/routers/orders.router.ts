@@ -58,7 +58,6 @@ router.get('/orders/:id', jwtAuth, async (req, res) => {
     res.json(o);
 });
 
-// Crear (valida cliente en Customers /internal)
 router.post('/orders', jwtAuth, async (req, res) => {
     try {
         const base = ENV.customersInternalBase!;
@@ -67,9 +66,30 @@ router.post('/orders', jwtAuth, async (req, res) => {
         });
         if (!resp.ok) return res.status(400).json({ error: 'Problems with customer' });
 
+        const createKey = req.header('X-Idempotency-Key') || null;
+        const createType = 'order_create' as const;
+
+        if (createKey) {
+            const existing = await idempotencyRepo.find(createKey, createType);
+            if (existing && existing.response_body) {
+                try { return res.status(201).json(JSON.parse(existing.response_body)); }
+                catch { return res.status(201).json(existing.response_body); }
+            }
+        }
+
+        // Crear
         const uc = new CreateOrderUseCase(productRepo, ordersRepo);
-        console.log('typeof productRepo.findById =', typeof (productRepo as any).findById);
         const order = await uc.execute(req.body);
+
+        if (createKey) {
+            await idempotencyRepo.save({
+                key: createKey,
+                target_type: createType,
+                target_id: order.id,
+                status: 'SUCCEEDED',
+                response_body: JSON.stringify(order),
+            });
+        }
 
         res.status(201).json(order);
     } catch (e: any) {
@@ -77,15 +97,13 @@ router.post('/orders', jwtAuth, async (req, res) => {
     }
 });
 
-// Confirmar (IDEMPOTENTE)
+
 router.post('/orders/:id/confirm', jwtAuth, async (req, res) => {
     try {
         const key = req.header('X-Idempotency-Key');
-        //console.log
         if (!key) return res.status(400).json({ error: 'Missing X-Idempotency-Key' });
 
         const uc = new ConfirmOrderUseCase(ordersRepo, idempotencyRepo);
-        
         const out = await uc.execute(Number(req.params.id), key);
         res.json(out);
     } catch (e: any) {

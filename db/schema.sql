@@ -40,16 +40,17 @@ CREATE TABLE IF NOT EXISTS order_items (
   FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
--- Idempotency
+-- Tabla Idempotency
 CREATE TABLE IF NOT EXISTS idempotency_keys (
-  `key` VARCHAR(128) PRIMARY KEY,
-  target_type ENUM('order_confirm') NOT NULL,
+  `key` VARCHAR(128) NOT NULL,
+  target_type ENUM('order_create','order_confirm') NOT NULL,
   target_id BIGINT NOT NULL,
   status ENUM('CREATED','SUCCEEDED','FAILED') NOT NULL,
   response_body JSON NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  expires_at TIMESTAMP NULL
+  expires_at TIMESTAMP NULL,
+  PRIMARY KEY (`key`, `target_type`)
 );
 
--- Índice por expiración ()
+-- Índice por expiración
 CREATE INDEX idx_idem_expires ON idempotency_keys (expires_at);

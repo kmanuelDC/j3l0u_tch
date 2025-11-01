@@ -43,19 +43,27 @@ const fetchJson = async (url: string, init: RequestInit & { timeoutMs?: number }
     }
 };
 
-const jsonResponse = (statusCode: number, body: unknown, extraHeaders?: Record<string, string>) => ({
+const jsonResponse = (
+    statusCode: number,
+    body: unknown,
+    extraHeaders?: Record<string, string>
+) => ({
     statusCode,
     headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Idempotency-Key, X-Correlation-Id',
+        'Access-Control-Allow-Methods': 'OPTIONS,POST',
         ...(extraHeaders || {}),
     },
     body: JSON.stringify(body),
+    isBase64Encoded: false,
 });
+
 
 const isPositiveInt = (n: unknown) => Number.isInteger(n) && (n as number) > 0;
 
 const validateBody = (b: any): { ok: true; data: Body } | { ok: false; error: string } => {
-    //console.log('validateBody', b);
     if (!b || typeof b !== 'object') return { ok: false, error: 'Body must be a JSON object' };
     if (!isPositiveInt(b.customer_id)) return { ok: false, error: 'customer_id must be a positive integer' };
     if (!Array.isArray(b.items) || b.items.length === 0) return { ok: false, error: 'items must be a non-empty array' };
@@ -78,11 +86,7 @@ const validateBody = (b: any): { ok: true; data: Body } | { ok: false; error: st
     };
 };
 
-// -----------------------
-// Handler (S2S requerido por la PT)
-// -----------------------
 export async function handler(event: ApiGwEvent) {
-    // 0) Parseo body
     let bodyRaw: any;
     try {
         bodyRaw = typeof event?.body === 'string' ? JSON.parse(event!.body as string) : event?.body;
@@ -94,19 +98,16 @@ export async function handler(event: ApiGwEvent) {
     if (!validated.ok) return jsonResponse(400, { error: validated.error });
     const body = validated.data;
 
-    // 1) Correlation Id
     const correlationId = body.correlation_id || randomUUID();
     const baseHeaders = {
         'Content-Type': 'application/json',
         'X-Correlation-Id': correlationId,
     };
 
-    // 2) Env vars requeridas
     const CUSTOMERS_BASE = env.CUSTOMERS_BASE;
     const ORDERS_BASE = env.ORDERS_BASE;
     const SERVICE_TOKEN = env.SERVICE_TOKEN;
     const JWT_SECRET = env.JWT_SECRET;
-    //console.log('SERVICE_TOKEN', SERVICE_TOKEN);
     if (!CUSTOMERS_BASE || !ORDERS_BASE || !SERVICE_TOKEN || !JWT_SECRET) {
         return jsonResponse(500, {
             error: 'Missing required env variables',
@@ -120,11 +121,8 @@ export async function handler(event: ApiGwEvent) {
         });
     }
 
-    // 3) Valida cliente via endpoint interno (requisito explícito de la PT)
     {
         const url = `${CUSTOMERS_BASE}/internal/customers/${body.customer_id}`;
-        console.log('url', url);
-
         const r = await fetchJson(url, {
             method: 'GET',
             headers: { ...baseHeaders, Authorization: `Bearer ${SERVICE_TOKEN}` },
@@ -140,21 +138,22 @@ export async function handler(event: ApiGwEvent) {
         }
     }
 
-    //console.log('JWT_SECRET', JWT_SECRET);
-    // 4) Token s2s corto para Orders (JWT simple)
     const ordersToken = jwt.sign(
         { sub: 'lambda-orchestrator', role: 'service', aud: 'orders-api' },
         JWT_SECRET,
         { expiresIn: '5m' },
     );
 
-    // 5) Crear orden (CREATED) en Orders
     const createOrder = await fetchJson(`${ORDERS_BASE}/orders`, {
         method: 'POST',
-        headers: { ...baseHeaders, Authorization: `Bearer ${ordersToken}` },
+        headers: {
+            ...baseHeaders,
+            Authorization: `Bearer ${ordersToken}`,
+            'X-Idempotency-Key': body.idempotency_key,   // <<--- AÑADIR ESTO
+        },
         body: JSON.stringify({ customer_id: body.customer_id, items: body.items }),
     });
-    console.log('llega a  createOrder', createOrder);
+
 
     if (!createOrder.ok) {
         return jsonResponse(502, {
@@ -185,7 +184,7 @@ export async function handler(event: ApiGwEvent) {
         });
     }
 
-    const confirmed = confirm.json; 
+    const confirmed = confirm.json;
     const customerResp = await fetchJson(`${CUSTOMERS_BASE}/internal/customers/${body.customer_id}`, {
         method: 'GET',
         headers: { ...baseHeaders, Authorization: `Bearer ${SERVICE_TOKEN}` },

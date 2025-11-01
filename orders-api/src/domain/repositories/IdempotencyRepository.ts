@@ -1,13 +1,18 @@
+// src/domain/repositories/IdempotencyRepository.ts
 export type IdempotencyRow = {
     key: string;
-    target_type: string;         // e.g. 'order'
+    target_type: 'order_create' | 'order_confirm';
     target_id: number | null;
     status: 'CREATED' | 'SUCCEEDED' | 'FAILED';
     response_body: string | null;
 };
 
 export interface IdempotencyRepository {
-    find(key: string): Promise<IdempotencyRow | null>;
+    find(key: string, targetType: IdempotencyRow['target_type']): Promise<IdempotencyRow | null>;
     save(row: Omit<IdempotencyRow, 'response_body'> & { response_body?: string | null }): Promise<void>;
-    update(key: string, data: Partial<IdempotencyRow>): Promise<void>;
+    update(
+        key: string,
+        targetType: IdempotencyRow['target_type'],
+        data: Partial<IdempotencyRow>
+    ): Promise<void>;
 }

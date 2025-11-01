@@ -62,7 +62,6 @@ export class MySQLCustomerRepository implements CustomerRepository {
         const fields: string[] = [];
         const params: any[] = [];
 
-        // Solo actualiza campos presentes
         for (const [k, v] of Object.entries(data)) {
             if (v !== undefined) {
                 fields.push(`${k} = ?`);
@@ -75,7 +74,6 @@ export class MySQLCustomerRepository implements CustomerRepository {
         }
 
         params.push(id);
-        // Respeta soft-delete: no actualiza si está eliminado
         await pool.execute(
             `UPDATE customers SET ${fields.join(', ')} WHERE id = ? AND deleted_at IS NULL`,
             params
