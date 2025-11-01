@@ -6,9 +6,7 @@ import jwt from 'jsonwebtoken';
 import { ENV as env } from './config/env.js';
 
 
-// -----------------------
-// Tipos
-// -----------------------
+
 type Item = { product_id: number; qty: number };
 type Body = {
     customer_id: number;
@@ -22,9 +20,7 @@ type ApiGwEvent = {
     headers?: Record<string, string | undefined>;
 };
 
-// -----------------------
-// Utilidades
-// -----------------------
+
 const fetchJson = async (url: string, init: RequestInit & { timeoutMs?: number } = {}) => {
     console.log('fetchJson', url, init);
     const controller = new AbortController();
@@ -149,7 +145,7 @@ export async function handler(event: ApiGwEvent) {
         headers: {
             ...baseHeaders,
             Authorization: `Bearer ${ordersToken}`,
-            'X-Idempotency-Key': body.idempotency_key,   // <<--- AÑADIR ESTO
+            'X-Idempotency-Key': body.idempotency_key, 
         },
         body: JSON.stringify({ customer_id: body.customer_id, items: body.items }),
     });
