@@ -2,7 +2,7 @@ export type IdempotencyRow = {
     key: string;
     target_type: string;         // e.g. 'order'
     target_id: number | null;
-    status: 'CREATED' | 'SUCCESS' | 'FAILED';
+    status: 'CREATED' | 'SUCCEEDED' | 'FAILED';
     response_body: string | null;
 };
 
