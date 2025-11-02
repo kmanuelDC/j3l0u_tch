@@ -1,4 +1,4 @@
-#  B2B Technical Challenge – Monorepo Architecture
+#  JELOU Technical Challenge – Monorepo Architecture
 
 ##  Descripción general
 Este proyecto implementa un ecosistema **B2B distribuido basado en microservicios**, compuesto por tres APIs independientes, comunicadas entre sí mediante HTTP y autenticadas con **JWT** y **Service Tokens**.  
@@ -178,28 +178,6 @@ CREATE TABLE idempotency_keys (
 
 ---
 
-## 🌐 Pruebas locales con Serverless Offline + Ngrok
-
-1. Iniciar docker-compose
-
-    ```bash
-    docker compose up -d --build
-    ```
-    
-2. Ve al directorio del orchestrator:
-   ```bash
-   cd lambda-orchestrator
-   npm run dev
-   ```
-   Esto inicia el entorno simulado Lambda en `http://localhost:3003`.
-
-3. (Opcional) Exponer públicamente:
-   ```bash
-   ngrok http 3003
-   ```
-   Copia la URL HTTPS que genera Ngrok y úsala para probar desde Postman.
-
----
 
 ## 🧰 Comandos útiles
 
@@ -262,6 +240,31 @@ POST http://localhost:3003/orchestrator/create-and-confirm-order
   "correlation_id": "req-001"
 }
 ```
+
+---
+
+## 🌐 Pruebas locales con Serverless Offline + Ngrok
+
+1. copiar el archivo `.env.example` a `.env` y revisar los valores de las variables de entorno.
+
+2. Iniciar docker-compose
+
+    ```bash
+    docker compose up -d --build
+    ```
+    
+3. Ve al directorio del orchestrator:
+   ```bash
+   cd lambda-orchestrator
+   npm run dev
+   ```
+   Esto inicia el entorno simulado Lambda en `http://localhost:3003`.
+
+4. (Opcional) Exponer públicamente:
+   ```bash
+   ngrok http 3003
+   ```
+   Copia la URL HTTPS que genera Ngrok y úsala para probar desde Postman.
 
 ---
 
